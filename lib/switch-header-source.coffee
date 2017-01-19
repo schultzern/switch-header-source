@@ -70,15 +70,19 @@ module.exports =
 
     dir  = path.dirname  @file
     name = path.basename @file
-
+    
     if @headerRegex.test name
       if @findInDir(dir, name, @headerRegex, @definitionRegex) or
-         @find(dir, name, 'include', 'src', @headerRegex, @definitionRegex)
+         @find(dir, name, 'include', 'src', @headerRegex, @definitionRegex) or
+         @findNovaBackward(dir, name, 'inc', @headerRegex, @definitionRegex) or
+         @findNovaBackward(dir, name, 'include', @headerRegex, @definitionRegex)
         return
 
     if @definitionRegex.test name
       if @findInDir(dir, name, @definitionRegex, @headerRegex) or
-         @find(dir, name, 'src', 'include', @definitionRegex, @headerRegex)
+         @find(dir, name, 'src', 'include', @definitionRegex, @headerRegex) or
+         @findNovaForward(dir, name, 'inc',  @definitionRegex, @headerRegex) or
+         @findNovaForward(dir, name, 'include',  @definitionRegex, @headerRegex)
         return
 
   # find corresponding file in 'dir' directory
@@ -97,14 +101,25 @@ module.exports =
 
     foundFile
 
-  # find corresponding file in alternate subtree
+# find corresponding file in alternate subtree
   find: (currentDir, name, upperBound, searchFrom, expressionA, expressionB) ->
     nodes = currentDir.split path.sep
     index = nodes.lastIndexOf upperBound
     return if index == -1
     nodes[index] = searchFrom
-    perfectDir = nodes.join path.sep
-    if not @findInDir perfectDir, name, expressionA, expressionB
-      dir = nodes[0..index].join path.sep
-      if not @findInDir dir, name, expressionA, expressionB
-        fs.traverseTree dir, (->), ((d) => not @findInDir d, name, expressionA, expressionB)
+    dir = nodes[0..index].join path.sep
+    if not @findInDir dir, name, expressionA, expressionB
+      fs.traverseTree dir, (->), ((d) => not @findInDir d, name, expressionA, expressionB)
+      
+# Nova specific search functions to find headers in /inc or /include
+  findNovaForward: (dir, name, searchFrom, expressionA, expressionB) ->
+    expandedDir = path.join(dir, searchFrom)
+    @findInDir(expandedDir, name, expressionA, expressionB)
+      
+  findNovaBackward: (currentDir, name, headDir, expressionA, expressionB) ->
+    nodes = currentDir.split path.sep
+    index = nodes.lastIndexOf(headDir) 
+    return if dir == -1
+    dir = nodes[0..index-1].join path.sep  
+    @findInDir(dir, name, expressionA, expressionB)
+  
